@@ -35,7 +35,9 @@ Hermetica.reset() // on logout: forgets the identifiers and starts a new anonymo
 ```
 
 Events are queued on the device, stored across launches, and sent in batches of up to 20: every 10 seconds, when 20 are
-waiting, and when the app goes to the background. Failed sends are retried with backoff and kept for the next launch.
+waiting, and when the app goes to the background (as a background task, so the send can finish after the app leaves
+the screen). Failed sends are retried with backoff and kept until the app is next in the foreground or launched; no
+Info.plist or background-mode setup is needed.
 Every request carries an `Idempotency-Key`, and every event a de-duplication key, so retries never double-count.
 
 ### Tracking opt-out
