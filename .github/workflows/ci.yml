@@ -1,0 +1,14 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+permissions: { contents: read }
+jobs:
+  test:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: swift build
+      - run: swift test
+      # SwiftPM builds for the macOS host only; this compiles the iOS-only parts (UIKit presenter, push, geofences).
+      - run: xcodebuild build -scheme HermeticaSDK -destination 'generic/platform=iOS Simulator' -quiet

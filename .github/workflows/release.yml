@@ -1,0 +1,31 @@
+# Push a tag "v0.1.0" (equal to Hermetica.sdkVersion and the podspec version) to release. Swift Package Manager resolves
+# straight from the git tag; the attested source zip is the provenance record.
+# CocoaPods (optional, one-time): run `pod trunk register <email> 'Hermetica'` on a trusted machine, confirm the email, and
+# store the session token from ~/.netrc (the password for trunk.cocoapods.org) as the repo secret COCOAPODS_TRUNK_TOKEN.
+# Without that secret the pod step is skipped.
+name: release
+on:
+  push: { tags: ['v*'] }
+permissions: { contents: write, id-token: write, attestations: write }
+jobs:
+  release:
+    runs-on: macos-latest
+    env:
+      COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Tag matches the SDK version
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          grep -q "sdkVersion = \"$v\"" Sources/HermeticaSDK/Version.swift || { echo "Version.swift is not $v"; exit 1; }
+          grep -Eq "s\.version[[:space:]]*=[[:space:]]*'$v'" HermeticaSDK.podspec || { echo "HermeticaSDK.podspec is not $v"; exit 1; }
+      - run: swift test
+      - run: xcodebuild build -scheme HermeticaSDK -destination 'generic/platform=iOS Simulator' -quiet
+      - run: git archive --prefix "hermetica-swift-$GITHUB_REF_NAME/" -o "hermetica-swift-$GITHUB_REF_NAME.zip" HEAD
+      - uses: actions/attest-build-provenance@v3
+        with: { subject-path: 'hermetica-swift-*.zip' }
+      - run: gh release create "$GITHUB_REF_NAME" hermetica-swift-*.zip --generate-notes
+        env: { GH_TOKEN: '${{ github.token }}' }
+      - name: Publish to CocoaPods trunk
+        if: env.COCOAPODS_TRUNK_TOKEN != ''
+        run: pod trunk push HermeticaSDK.podspec --allow-warnings
