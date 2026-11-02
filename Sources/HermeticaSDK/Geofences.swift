@@ -34,21 +34,21 @@ extension Hermetica {
     }
 
     #if os(iOS)
-    /// Monitors the nearest fences with Core Location (iOS allows 20 regions per app, shared with your own). Never asks for
-    /// permission: it works only once the app holds "Always" location access, and returns false otherwise.
-    /// Call it at every launch (also in `application(_:didFinishLaunchingWithOptions:)`) so region events reach the SDK.
-    @discardableResult
-    public static func startGeofenceMonitoring() -> Bool {
-        guard let core, !isTrackingOptedOut else { return false }
-        let m = GeofenceMonitor.shared ?? GeofenceMonitor()
-        GeofenceMonitor.shared = m
-        return m.start(core)
-    }
+        /// Monitors the nearest fences with Core Location (iOS allows 20 regions per app, shared with your own). Never asks for
+        /// permission: it works only once the app holds "Always" location access, and returns false otherwise.
+        /// Call it at every launch (also in `application(_:didFinishLaunchingWithOptions:)`) so region events reach the SDK.
+        @discardableResult
+        public static func startGeofenceMonitoring() -> Bool {
+            guard let core, !isTrackingOptedOut else { return false }
+            let m = GeofenceMonitor.shared ?? GeofenceMonitor()
+            GeofenceMonitor.shared = m
+            return m.start(core)
+        }
 
-    /// Stops monitoring Hermetica's regions (the app's own regions are left alone).
-    public static func stopGeofenceMonitoring() {
-        DispatchQueue.main.async { GeofenceMonitor.shared?.stop() }
-    }
+        /// Stops monitoring Hermetica's regions (the app's own regions are left alone).
+        public static func stopGeofenceMonitoring() {
+            DispatchQueue.main.async { GeofenceMonitor.shared?.stop() }
+        }
     #endif
 }
 
@@ -82,44 +82,45 @@ extension Core {
 }
 
 #if os(iOS)
-final class GeofenceMonitor: NSObject, CLLocationManagerDelegate {
-    static var shared: GeofenceMonitor?
-    private let manager = CLLocationManager()
-    private weak var core: Core?
+    final class GeofenceMonitor: NSObject, CLLocationManagerDelegate {
+        static var shared: GeofenceMonitor?
+        private let manager = CLLocationManager()
+        private weak var core: Core?
 
-    override init() {
-        super.init()
-        manager.delegate = self
-    }
-
-    private var ours: [CLRegion] { manager.monitoredRegions.filter { $0.identifier.hasPrefix(Core.regionPrefix) } }
-
-    func start(_ core: Core) -> Bool {
-        guard CLLocationManager.authorizationStatus() == .authorizedAlways, CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self) else { return false }
-        self.core = core
-        core.fetchGeofences { fences in
-            guard let fences else { return }
-            DispatchQueue.main.async { self.monitor(fences) }
+        override init() {
+            super.init()
+            manager.delegate = self
         }
-        return true
-    }
 
-    private func monitor(_ fences: [Geofence]) {
-        let mine = ours
-        let room = max(0, Core.regionLimit - (manager.monitoredRegions.count - mine.count))
-        mine.forEach { manager.stopMonitoring(for: $0) }
-        for f in Core.nearest(fences, to: manager.location, limit: room) {
-            let r = CLCircularRegion(center: CLLocationCoordinate2D(latitude: f.latitude, longitude: f.longitude),
-                                     radius: min(f.radius, manager.maximumRegionMonitoringDistance), identifier: Core.regionPrefix + f.id)
-            r.notifyOnEntry = true
-            r.notifyOnExit = true
-            manager.startMonitoring(for: r)
+        private var ours: [CLRegion] { manager.monitoredRegions.filter { $0.identifier.hasPrefix(Core.regionPrefix) } }
+
+        func start(_ core: Core) -> Bool {
+            guard CLLocationManager.authorizationStatus() == .authorizedAlways, CLLocationManager.isMonitoringAvailable(for: CLCircularRegion.self) else { return false }
+            self.core = core
+            core.fetchGeofences { fences in
+                guard let fences else { return }
+                DispatchQueue.main.async { self.monitor(fences) }
+            }
+            return true
         }
+
+        private func monitor(_ fences: [Geofence]) {
+            let mine = ours
+            let room = max(0, Core.regionLimit - (manager.monitoredRegions.count - mine.count))
+            mine.forEach { manager.stopMonitoring(for: $0) }
+            for f in Core.nearest(fences, to: manager.location, limit: room) {
+                let r = CLCircularRegion(
+                    center: CLLocationCoordinate2D(latitude: f.latitude, longitude: f.longitude),
+                    radius: min(f.radius, manager.maximumRegionMonitoringDistance), identifier: Core.regionPrefix + f.id)
+                r.notifyOnEntry = true
+                r.notifyOnExit = true
+                manager.startMonitoring(for: r)
+            }
+        }
+
+        func stop() { ours.forEach { manager.stopMonitoring(for: $0) } }
+
+        func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) { (core ?? Hermetica.core)?.handleRegion(region.identifier, .enter) }
+        func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) { (core ?? Hermetica.core)?.handleRegion(region.identifier, .exit) }
     }
-
-    func stop() { ours.forEach { manager.stopMonitoring(for: $0) } }
-
-    func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) { (core ?? Hermetica.core)?.handleRegion(region.identifier, .enter) }
-    func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) { (core ?? Hermetica.core)?.handleRegion(region.identifier, .exit) }
-}
 #endif

@@ -108,7 +108,7 @@ extension Core {
             case .event(let n, let p):
                 trigger = "event"; name = n
                 let json = p.isEmpty ? nil : (try? JSONSerialization.data(withJSONObject: jsonSafe(p))).map { String(decoding: $0, as: UTF8.self) }
-                props = (json?.count ?? 0) <= 4096 ? json : nil // the server caps it; better no properties than no messages
+                props = (json?.count ?? 0) <= 4096 ? json : nil  // the server caps it; better no properties than no messages
             }
             let query: [(String, String?)] = [
                 ("platform", "ios"), ("trigger", trigger), ("session_id", self.sessionId), ("name", name), ("properties", props),
@@ -151,7 +151,7 @@ extension Core {
     func present(_ m: InAppMessage) {
         if Hermetica.inAppDelegate?.hermetica(present: m) == true { return }
         #if os(iOS)
-        InAppPresenter.shared.show(m)
+            InAppPresenter.shared.show(m)
         #endif
     }
 

@@ -1,6 +1,7 @@
 import Foundation
+
 #if os(iOS)
-import UIKit
+    import UIKit
 #endif
 
 /// All SDK state. Every mutable field is touched only on `q`.
@@ -39,7 +40,7 @@ final class Core {
         profile = defaults.dictionary(forKey: Key.profile) as? [String: String] ?? [:]
         queue = defaults.data(forKey: Key.queue).flatMap { try? JSONSerialization.jsonObject(with: $0) as? [[String: Any]] } ?? []
         #if os(iOS)
-        observeLifecycle()
+            observeLifecycle()
         #endif
     }
 
@@ -62,7 +63,7 @@ final class Core {
             self.saveProfile()
             self.pendingTraits.merge(traits) { _, new in new }
             self.sendIdentifyLocked()
-            if externalId != nil || email != nil || phone != nil { self.registerPush(nil, environment: nil, done: nil) } // move the device to this profile
+            if externalId != nil || email != nil || phone != nil { self.registerPush(nil, environment: nil, done: nil) }  // move the device to this profile
         }
     }
 
@@ -81,7 +82,7 @@ final class Core {
             self.inAppSeen = []
             self.saveProfile()
             self.defaults.removeObject(forKey: Key.anonymousId)
-            self.registerPush(nil, environment: nil, done: nil) // the device now belongs to the new anonymous visitor
+            self.registerPush(nil, environment: nil, done: nil)  // the device now belongs to the new anonymous visitor
         }
     }
 
@@ -93,7 +94,7 @@ final class Core {
             queue = []
             pendingTraits = [:]
             persistQueue()
-            defaults.removeObject(forKey: Key.anonymousId) // a new visitor id after opting back in
+            defaults.removeObject(forKey: Key.anonymousId)  // a new visitor id after opting back in
         }
     }
 
@@ -118,7 +119,7 @@ final class Core {
             if let currency { ev["currency"] = currency }
             if let page { ev["context"] = ["page": page] }
             self.queue.append(ev)
-            if self.queue.count > Self.maxQueue { self.queue.removeFirst(self.queue.count - Self.maxQueue) } // drop oldest
+            if self.queue.count > Self.maxQueue { self.queue.removeFirst(self.queue.count - Self.maxQueue) }  // drop oldest
             self.persistQueue()
             if self.queue.count >= Self.maxBatch { self.flushLocked() } else { self.armTimer() }
         }
@@ -131,7 +132,9 @@ final class Core {
     private func armTimer() {
         guard !timerArmed else { return }
         timerArmed = true
-        q.asyncAfter(deadline: .now() + flushInterval) { [weak self] in self?.timerArmed = false; self?.flushLocked() }
+        q.asyncAfter(deadline: .now() + flushInterval) { [weak self] in
+            self?.timerArmed = false; self?.flushLocked()
+        }
     }
 
     func flush(_ done: (() -> Void)? = nil) { q.async { self.flushLocked(done) } }
@@ -163,21 +166,21 @@ final class Core {
     }
 
     #if os(iOS)
-    private func observeLifecycle() {
-        let nc = NotificationCenter.default
-        nc.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
-            var task = UIBackgroundTaskIdentifier.invalid
-            let end = { if task != .invalid { UIApplication.shared.endBackgroundTask(task); task = .invalid } }
-            task = UIApplication.shared.beginBackgroundTask(withName: "hermetica.flush", expirationHandler: end)
-            self?.flush { DispatchQueue.main.async(execute: end) }
+        private func observeLifecycle() {
+            let nc = NotificationCenter.default
+            nc.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: .main) { [weak self] _ in
+                var task = UIBackgroundTaskIdentifier.invalid
+                let end = { if task != .invalid { UIApplication.shared.endBackgroundTask(task); task = .invalid } }
+                task = UIApplication.shared.beginBackgroundTask(withName: "hermetica.flush", expirationHandler: end)
+                self?.flush { DispatchQueue.main.async(execute: end) }
+            }
+            nc.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in self?.flush() }
         }
-        nc.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: .main) { [weak self] _ in self?.flush() }
-    }
     #endif
 
     static func systemOpen(_ url: URL) {
         #if os(iOS)
-        DispatchQueue.main.async { UIApplication.shared.open(url) }
+            DispatchQueue.main.async { UIApplication.shared.open(url) }
         #endif
     }
 }

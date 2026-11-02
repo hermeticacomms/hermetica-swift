@@ -17,7 +17,7 @@ public enum Hermetica {
         guard core == nil else { return log("initialize called twice; keeping the first configuration") }
         let c = Core(siteKey: siteKey, baseURL: baseURL)
         core = c
-        c.flush() // what an earlier launch could not send
+        c.flush()  // what an earlier launch could not send
     }
 
     /// Who this is. Any identifier you pass is kept until `reset`; `properties` become profile attributes.
@@ -57,7 +57,7 @@ public enum Hermetica {
         guard let core else { return }
         core.setOptOut(optedOut)
         #if os(iOS)
-        if optedOut { stopGeofenceMonitoring() }
+            if optedOut { stopGeofenceMonitoring() }
         #endif
     }
 

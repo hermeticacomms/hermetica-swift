@@ -1,5 +1,6 @@
 import CoreLocation
 import XCTest
+
 @testable import HermeticaSDK
 
 final class HermeticaTests: XCTestCase {
@@ -15,7 +16,7 @@ final class HermeticaTests: XCTestCase {
     }
 
     override func tearDown() {
-        core = nil // its pending flush timer then does nothing
+        core = nil  // its pending flush timer then does nothing
         Hermetica.core = nil
         Hermetica.inAppDelegate = nil
         super.tearDown()
@@ -110,7 +111,7 @@ final class HermeticaTests: XCTestCase {
         let keys = events(requests("/ingest/v1/batch")[0]).compactMap { $0["dedupeKey"] as? String }
 
         MockURLProtocol.reset()
-        core = makeCore() // a new launch reading the same storage
+        core = makeCore()  // a new launch reading the same storage
         Hermetica.core = core
         flush()
         let resent = requests("/ingest/v1/batch")
@@ -150,11 +151,17 @@ final class HermeticaTests: XCTestCase {
         Hermetica.identify(email: "a@b.co")
         Hermetica.handlePushOpened(userInfo: ["hermetica_message_id": "m1"])
         let push = expectation(description: "push")
-        Hermetica.setPushToken("abcd") { ok in XCTAssertFalse(ok); push.fulfill() }
+        Hermetica.setPushToken("abcd") { ok in
+            XCTAssertFalse(ok); push.fulfill()
+        }
         let inApp = expectation(description: "inapp")
-        Hermetica.fetchInAppMessages(trigger: .appOpen) { XCTAssertTrue($0.isEmpty); inApp.fulfill() }
+        Hermetica.fetchInAppMessages(trigger: .appOpen) {
+            XCTAssertTrue($0.isEmpty); inApp.fulfill()
+        }
         let fences = expectation(description: "fences")
-        Hermetica.fetchGeofences { XCTAssertTrue($0.isEmpty); fences.fulfill() }
+        Hermetica.fetchGeofences {
+            XCTAssertTrue($0.isEmpty); fences.fulfill()
+        }
         wait(for: [push, inApp, fences], timeout: 5)
         flush()
         XCTAssertTrue(MockURLProtocol.seen.isEmpty, "opted out: no request at all")
@@ -177,7 +184,9 @@ final class HermeticaTests: XCTestCase {
         core.pushStatus = { $0(.provisional, .restricted) }
         Hermetica.identify(email: "a@b.co")
         let done = expectation(description: "register")
-        Hermetica.setPushToken(Data([0xde, 0xad, 0xbe, 0xef]), environment: .sandbox) { ok in XCTAssertTrue(ok); done.fulfill() }
+        Hermetica.setPushToken(Data([0xde, 0xad, 0xbe, 0xef]), environment: .sandbox) { ok in
+            XCTAssertTrue(ok); done.fulfill()
+        }
         wait(for: [done], timeout: 5)
 
         let r = try XCTUnwrap(requests("/client/push-tokens").first)
@@ -204,7 +213,9 @@ final class HermeticaTests: XCTestCase {
         XCTAssertEqual(Hermetica.pushToken, "deadbeef")
 
         let gone = expectation(description: "unregister")
-        Hermetica.unregisterPushToken { ok in XCTAssertTrue(ok); gone.fulfill() }
+        Hermetica.unregisterPushToken { ok in
+            XCTAssertTrue(ok); gone.fulfill()
+        }
         wait(for: [gone], timeout: 5)
         let u = try XCTUnwrap(requests("/client/push-token-unregister").first?.body?["data"] as? [String: Any])
         XCTAssertEqual(u["type"] as? String, "push-token-unregister")
@@ -235,16 +246,18 @@ final class HermeticaTests: XCTestCase {
     // MARK: in-app
 
     private static let message = """
-    {"items":[{"id":"7c1e0f8a-0000-4000-8000-000000000001","variant":"b","layout":"carousel","priority":5,"queued":false,
-      "content":{"blocks":[{"type":"heading","text":"Hi"},{"type":"video"},{"type":"buttons","buttons":[
-        {"label":"Shop","action":"deep_link","value":"shop://sale"},{"label":"Ping","action":"event","value":"inapp_ping","style":"secondary"}]}]},
-      "style":{"background":"#ffffff","textColor":"#111111","accentColor":"#2563eb","radius":12,"dismissible":true}}]}
-    """
+        {"items":[{"id":"7c1e0f8a-0000-4000-8000-000000000001","variant":"b","layout":"carousel","priority":5,"queued":false,
+          "content":{"blocks":[{"type":"heading","text":"Hi"},{"type":"video"},{"type":"buttons","buttons":[
+            {"label":"Shop","action":"deep_link","value":"shop://sale"},{"label":"Ping","action":"event","value":"inapp_ping","style":"secondary"}]}]},
+          "style":{"background":"#ffffff","textColor":"#111111","accentColor":"#2563eb","radius":12,"dismissible":true}}]}
+        """
 
     private func fetch(_ t: InAppTrigger) -> [InAppMessage] {
         let e = expectation(description: "fetch")
         var out: [InAppMessage] = []
-        Hermetica.fetchInAppMessages(trigger: t) { out = $0; e.fulfill() }
+        Hermetica.fetchInAppMessages(trigger: t) {
+            out = $0; e.fulfill()
+        }
         wait(for: [e], timeout: 5)
         return out
     }
@@ -317,13 +330,15 @@ final class HermeticaTests: XCTestCase {
         MockURLProtocol.handler = { _ in self.json(#"{"data":[{"type":"geofence","id":"g1","attributes":{"name":"Store","latitude":1,"longitude":2,"radius":150}}]}"#) }
         let e = expectation(description: "fences")
         var fences: [Geofence] = []
-        Hermetica.fetchGeofences { fences = $0; e.fulfill() }
+        Hermetica.fetchGeofences {
+            fences = $0; e.fulfill()
+        }
         wait(for: [e], timeout: 5)
         XCTAssertEqual(fences, [Geofence(id: "g1", name: "Store", latitude: 1, longitude: 2, radius: 150)])
 
         Hermetica.reportGeofence(.dwell, geofenceId: "g1")
         core.handleRegion(Core.regionPrefix + "g2", .enter)
-        core.handleRegion("app-region", .exit) // not ours
+        core.handleRegion("app-region", .exit)  // not ours
         flush()
         let evs = requests("/ingest/v1/batch").flatMap(events)
         XCTAssertEqual(evs.map { $0["name"] as? String }, ["$geofence_dwell", "$geofence_enter"])

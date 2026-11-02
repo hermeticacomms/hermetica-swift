@@ -1,7 +1,8 @@
 import Foundation
+
 #if os(iOS)
-import UIKit
-import UserNotifications
+    import UIKit
+    import UserNotifications
 #endif
 
 public enum PushEnablementStatus: String {
@@ -48,29 +49,30 @@ extension Hermetica {
     }
 
     #if os(iOS)
-    /// Call from `userNotificationCenter(_:didReceive:withCompletionHandler:)`. Tracks the open and, unless told not to, opens the deep link.
-    @discardableResult
-    public static func handleNotificationResponse(_ response: UNNotificationResponse, openDeepLink: Bool = true) -> URL? {
-        guard response.actionIdentifier != UNNotificationDismissActionIdentifier else { return nil }
-        let link = handlePushOpened(userInfo: response.notification.request.content.userInfo).flatMap(URL.init(string:))
-        if openDeepLink, let link {
-            let open = core?.openURL ?? Core.systemOpen
-            open(link)
+        /// Call from `userNotificationCenter(_:didReceive:withCompletionHandler:)`. Tracks the open and, unless told not to, opens the deep link.
+        @discardableResult
+        public static func handleNotificationResponse(_ response: UNNotificationResponse, openDeepLink: Bool = true) -> URL? {
+            guard response.actionIdentifier != UNNotificationDismissActionIdentifier else { return nil }
+            let link = handlePushOpened(userInfo: response.notification.request.content.userInfo).flatMap(URL.init(string:))
+            if openDeepLink, let link {
+                let open = core?.openURL ?? Core.systemOpen
+                open(link)
+            }
+            return link
         }
-        return link
-    }
 
-    /// For `userNotificationCenter(_:willPresent:withCompletionHandler:)`: show Hermetica pushes while the app is open.
-    public static func presentationOptions(for notification: UNNotification) -> UNNotificationPresentationOptions {
-        if #available(iOS 14.0, *) { return [.banner, .list, .sound, .badge] }
-        return [.alert, .sound, .badge]
-    }
+        /// For `userNotificationCenter(_:willPresent:withCompletionHandler:)`: show Hermetica pushes while the app is open.
+        public static func presentationOptions(for notification: UNNotification) -> UNNotificationPresentationOptions {
+            if #available(iOS 14.0, *) { return [.banner, .list, .sound, .badge] }
+            return [.alert, .sound, .badge]
+        }
     #endif
 
     /// Development builds carry a provisioning profile naming the APNs environment; App Store builds carry none (production).
     static func apnsEnvironment() -> PushEnvironment {
         guard let url = Bundle.main.url(forResource: "embedded", withExtension: "mobileprovision"),
-              let data = try? Data(contentsOf: url) else { return .production }
+            let data = try? Data(contentsOf: url)
+        else { return .production }
         let text = String(decoding: data, as: UTF8.self)
         guard let r = text.range(of: "<key>aps-environment</key>") else { return .production }
         return text[r.upperBound...].drop(while: { $0.isWhitespace }).hasPrefix("<string>development</string>") ? .sandbox : .production
@@ -137,24 +139,24 @@ extension Core {
 
     static func systemPushStatus(_ done: @escaping (PushEnablementStatus, PushBackgroundStatus) -> Void) {
         #if os(iOS)
-        UNUserNotificationCenter.current().getNotificationSettings { s in
-            let e: PushEnablementStatus
-            switch s.authorizationStatus {
-            case .denied: e = .denied
-            case .notDetermined: e = .notDetermined
-            case .provisional: e = .provisional
-            default: e = .authorized // authorized, ephemeral (App Clips)
-            }
-            DispatchQueue.main.async {
-                switch UIApplication.shared.backgroundRefreshStatus {
-                case .denied: done(e, .denied)
-                case .restricted: done(e, .restricted)
-                default: done(e, .available)
+            UNUserNotificationCenter.current().getNotificationSettings { s in
+                let e: PushEnablementStatus
+                switch s.authorizationStatus {
+                case .denied: e = .denied
+                case .notDetermined: e = .notDetermined
+                case .provisional: e = .provisional
+                default: e = .authorized  // authorized, ephemeral (App Clips)
+                }
+                DispatchQueue.main.async {
+                    switch UIApplication.shared.backgroundRefreshStatus {
+                    case .denied: done(e, .denied)
+                    case .restricted: done(e, .restricted)
+                    default: done(e, .available)
+                    }
                 }
             }
-        }
         #else
-        done(.authorized, .available)
+            done(.authorized, .available)
         #endif
     }
 }

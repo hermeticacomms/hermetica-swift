@@ -51,7 +51,8 @@ final class Transport {
     /// POST with retries and one Idempotency-Key for all attempts. `done` gets the last HTTP status (0 = network failure).
     func post(_ path: String, _ body: [String: Any], done: ((Int) -> Void)? = nil) {
         guard let u = url(path, []), JSONSerialization.isValidJSONObject(body),
-              let data = try? JSONSerialization.data(withJSONObject: body) else {
+            let data = try? JSONSerialization.data(withJSONObject: body)
+        else {
             log("dropped a request whose body is not JSON: \(path)")
             done?(400)
             return
