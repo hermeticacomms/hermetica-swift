@@ -8,6 +8,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v5
+      # Style lives in .swift-format; `swift format -i -r Sources Tests` fixes what this reports.
+      - run: swift format lint --strict --recursive Sources Tests Package.swift
       - run: swift build
       - run: swift test
       # SwiftPM builds for the macOS host only; this compiles the iOS-only parts (UIKit presenter, push, geofences).
