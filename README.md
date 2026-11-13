@@ -8,7 +8,7 @@ Events, profiles, push notifications, in-app messages and geofences for iOS apps
 `https://github.com/hermeticacomms/hermetica-swift`, or add it to `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/hermeticacomms/hermetica-swift", from: "0.1.0")
+.package(url: "https://github.com/hermeticacomms/hermetica-swift", from: "0.4.0")
 // target dependency:
 .product(name: "HermeticaSDK", package: "hermetica-swift")
 ```
